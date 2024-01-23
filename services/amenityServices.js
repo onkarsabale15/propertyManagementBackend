@@ -159,7 +159,7 @@ const createAmenityDateSlots = async (date, amenity_id, activeTiming) => {
         return { success: false, message: "Got error while creating new timeslots for selected date" }
     }
 }
-const bookingRange = async (amenityBooking, timeSlot, amenity, user,date) => {
+const bookingRange = async (amenityBooking, timeSlot, amenity, user, date) => {
     const maxNo = amenity.maximumAllowedNumber;
     const { from, to } = timeSlot.value;
     let previousBookings = await Booking.findById(user.previousBookings)
@@ -196,12 +196,12 @@ const bookingRange = async (amenityBooking, timeSlot, amenity, user,date) => {
         return false;
     });
     const totalAdultPrice = await amenity.price.adult * await timeSlot.bookingNumbers.adult * toPush.timeSlot.value.length
-    const totalChildrenPrice = await amenity.price.children *await timeSlot.bookingNumbers.children * toPush.timeSlot.value.length
+    const totalChildrenPrice = await amenity.price.children * await timeSlot.bookingNumbers.children * toPush.timeSlot.value.length
     const toPushBooking = {
         amenity_id: amenity._id,
         timeSlot: {
             value: timeSlot.value,
-            date:date
+            date: date
         },
         pricing: {
             adult: {
@@ -215,7 +215,7 @@ const bookingRange = async (amenityBooking, timeSlot, amenity, user,date) => {
                 totalChildrenPrice: totalChildrenPrice
             }
         },
-        totalPrice: totalAdultPrice+totalChildrenPrice
+        totalPrice: totalAdultPrice + totalChildrenPrice
     }
     await previousBookings.amenitiesBooking.push(toPushBooking)
     await amenityBooking.bookedUsers.push(toPush);
@@ -224,17 +224,17 @@ const bookingRange = async (amenityBooking, timeSlot, amenity, user,date) => {
     return { success, message, data: success ? previousBookings : null };
 };
 
-const createAmenityBooking = async (amenity, amenityBooking, timeSlot, user,date) => {
+const createAmenityBooking = async (amenity, amenityBooking, timeSlot, user, date) => {
     try {
         const bookedAmenity = await bookingRange(amenityBooking, timeSlot, amenity, user, date);
         if (bookedAmenity.success) {
-            return {success:true, message:"Booking Created Successfully", data:bookedAmenity.data};
+            return { success: true, message: "Booking Created Successfully", data: bookedAmenity.data };
         } else {
-            return {success:false, message:"Got into error while creating Booking."};
+            return { success: false, message: "Got into error while creating Booking." };
         }
     } catch (error) {
         console.log(error)
-        return {success:false, message:"Got into error while creating Booking."};
+        return { success: false, message: "Got into error while creating Booking." };
     }
 }
 const checkValidSlots = async (amenity, timeSlot) => {
@@ -254,7 +254,7 @@ const checkValidSlots = async (amenity, timeSlot) => {
     } catch (error) {
         console.log(error)
         return { success: false, message: "Got into error while verifying slots." }
-    }
+    };
 }
 
 module.exports = { preAmenityAddChecks, addNewAmenity, getByPropId, existAndNotClosed, checkBookingDateExists, createAmenityDateSlots, createAmenityBooking, checkValidSlots };
