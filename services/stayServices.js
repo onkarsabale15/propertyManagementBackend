@@ -6,6 +6,8 @@ const Amenity = require("../models/amenity");
 const saveImages = require("../helpers/saveFilesLocally");
 const { ObjectId } = require('mongodb');
 const AmenityBooking = require("../models/amenityBooking");
+const StayBooking = require("../models/stayBooking");
+const Booking = require("../models/booking");
 async function validateRoomNo(roomNo) {
     for (const i of roomNo) {
         if (!Number(i)) {
@@ -188,5 +190,179 @@ const getByPropId = async (property_id) => {
     };
 };
 
+function generateDateArray(checkIn, checkOut) {
+    const dateArray = [];
+    const currentDate = new Date(checkIn);
+    const endDate = new Date(checkOut);
 
-module.exports = { preAddChecks, checkPropAndAddStay, getByPropId };
+    while (currentDate <= endDate) {
+        const formattedDate = currentDate.toLocaleDateString('en-CA').replace(/-/g, '/');
+        dateArray.push(formattedDate);
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return dateArray;
+}
+
+const isClosed = async (stay, dateArray) => {
+
+    try {
+        const closedDates = stay.closedDates;
+        for (const date of dateArray) {
+            if (closedDates.includes(date)) {
+                return { success: false, message: `This stay is closed on ${date}` }
+            }
+        }
+        return { success: true, message: `This stay is available on the selected dates.` }
+    } catch (error) {
+        console.log(error)
+        return { success: false, message: "Got into error while checking room availability" }
+    }
+}
+
+const createRecord = async (stay_id, date) => {
+    try {
+        const record = await StayBooking.create({
+            stay_id: stay_id, date: date, roomBooked: []
+        });
+        if (record) {
+            return { success: true, message: ` created booking record of date ${date}`, data: record }
+        } else {
+            return { success: false, message: `Unable to create booking record of date ${date}` }
+        }
+    } catch (error) {
+        console.log(error);
+        return { success: false, message: "got into error while creating booking record" }
+    }
+}
+
+const bookingRecords = async (stay_id, dateArray, roomNo) => {
+    try {
+        let success = true;
+        let message = `Successfully created booking records`
+        for (const date of dateArray) {
+            const recordExist = await StayBooking.findOne({ stay_id: stay_id, date: date });
+            if (!recordExist) {
+                const createdRecord = await createRecord(stay_id, date);
+                if (!createdRecord.success) {
+                    return createdRecord;//if no success then will stop execution of for of loop and return to main function
+                }
+            } else {
+                recordExist.roomBooked.map((booking) => {
+                    if (booking.value == roomNo) {
+                        success = false;
+                        message = `Room ${roomNo} is not available for booking on ${date}.`
+                    }
+                })
+            }
+        }
+        return { success, message }
+    } catch (error) {
+        console.log(error);
+        return { success: false, message: "Got into error while checking booking Records." }
+    }
+}
+
+const isClosedOrUnavailable = async (roomNo, duration, stay) => {
+    const dateArray = await generateDateArray(duration.checkIn, duration.checkOut);
+    await dateArray.pop();
+    const closed = await isClosed(stay, dateArray);
+    if (closed.success) {
+        const record = await bookingRecords(stay._id, dateArray, roomNo)
+        return record
+    } else {
+        return closed;
+    }
+}
+
+
+const preBookChecks = async (body) => {
+    try {
+        const stay = await Stay.findById(body.room.id);
+        if (stay.roomNumbers.includes(body.roomNo)) {
+            if (stay) {
+                const isAvailable = await isClosedOrUnavailable(body.roomNo, body.duration, stay)
+                if (isAvailable.success) {
+                    const totalOccupants = body.room.booking.adult + body.room.booking.children
+                    if (totalOccupants > stay.maxPeople) {
+                        return { success: false, message: `Only ${stay.maxPeople} people are allowed in this stay.` };
+                    } else {
+                        return { success: true, message: `All pre book checks completed.` };
+                    }
+                } else {
+                    return { success: false, message: isAvailable.message };
+                }
+            } else {
+                return { success: false, message: "Selected stay doesnt exists" };
+            }
+        } else {
+            return { success: false, message: "Invalid Room Number to book" };
+        }
+    } catch (error) {
+        console.log(error);
+        return { success: false, message: "Got into error while validating booking data." }
+    }
+}
+
+const finalBooking = async (body, user) => {
+    try {
+        const dateArray = await generateDateArray(body.duration.checkIn, body.duration.checkOut);
+        dateArray.pop();
+
+        const stay = await Stay.findById(body.room.id);
+
+        // Update stay bookings in parallel
+        await Promise.all(dateArray.map(async (date) => {
+            const stayBooking = await StayBooking.findOne({ stay_id: stay._id, date: date });
+            stayBooking.roomBooked.push({ value: body.roomNo, ofUser: user._id });
+            await stayBooking.save();
+        }));
+
+        // Calculate charges
+        const totalAdultPrice = stay.price.adult * body.room.booking.adult * dateArray.length;
+        const totalChildrenPrice = stay.price.children * body.room.booking.children * dateArray.length;
+        const totalCharges = totalAdultPrice + totalChildrenPrice;
+
+        // Update user bookings
+        const booking = await Booking.findById(user.previousBookings);
+        const toPush = {
+            room: {
+                id: body.room.id,
+                charges: {
+                    adult: {
+                        number: body.room.booking.adult,
+                        pricePerAdult: stay.price.adult,
+                        totalAdultPrice: totalAdultPrice
+                    },
+                    children: {
+                        number: body.room.booking.children,
+                        pricePerChildren: stay.price.children,
+                        totalChildrenPrice: totalChildrenPrice
+                    },
+                    totalCharges: totalCharges
+                }
+            },
+            roomNo: body.roomNo,
+            duration: {
+                checkIn: body.duration.checkIn,
+                checkOut: body.duration.checkOut,
+                totalDuration: dateArray.length
+            }
+        };
+
+        booking.stayBooking.push(toPush);
+        const booked = await booking.save();
+
+        if (booked) {
+            return { success: true, message: "Successfully booked the stay.", data: booked };
+        } else {
+            return { success: false, message: "Got into an error while saving booking in the user profile." };
+        }
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: "Got into an error while creating the booking." };
+    }
+};
+
+
+module.exports = { preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking };

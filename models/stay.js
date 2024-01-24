@@ -38,7 +38,7 @@ const StaySchema = new mongoose.Schema(
       type: Number
     }],
     closedDates: [{
-      type: Date,
+      type: String,
     }],
     status: {
       type: Boolean,

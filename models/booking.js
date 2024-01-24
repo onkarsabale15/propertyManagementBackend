@@ -63,9 +63,65 @@ const bookingSchema = mongoose.Schema({
             required: true
         }
     }],
-    roomBooking: [{
-        type: objId,
-        ref: "RoomBooking"
+    stayBooking: [{
+        room: {
+            id: {
+                type: objId,
+                ref: "Stay"
+            },
+            charges: {
+                adult: {
+                    number: {
+                        type: Number,
+                        required: true
+                    },
+                    pricePerAdult: {
+                        type: Number,
+                        required: true
+                    },
+                    totalAdultPrice: {
+                        type: Number,
+                        required: true
+                    }
+                },
+                children: {
+                    number: {
+                        type: Number,
+                        required: true
+                    },
+                    pricePerChildren: {
+                        type: Number,
+                        required: true
+                    },
+                    totalChildrenPrice: {
+                        type: Number,
+                        required: true
+                    }
+                },
+                totalCharges: {
+                    type: Number,
+                    required: true
+                }
+            }
+        },
+        roomNo: {
+            type: Number,
+            required: true
+        },
+        duration: {
+            checkIn: {
+                type: String,
+                required: true
+            },
+            checkOut: {
+                type: String,
+                required: true
+            },
+            totalDuration: {
+                type: String,
+                required: true
+            }
+        }
     }]
 });
 

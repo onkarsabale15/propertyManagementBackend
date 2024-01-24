@@ -1,46 +1,24 @@
 const mongoose = require("mongoose");
 const objId = mongoose.Schema.Types.ObjectId;
 const stayBookingSchema = mongoose.Schema({
-    user: {
+    stay_id: {
         type: objId,
-        required: true,
-        ref: "User"
+        ref: "Stay"
     },
-    property: {
-        type: objId,
-        ref: "Property"
+    date: {
+        type: String,
+        required: true
     },
-    room: [{
-        id: {
+    roomBooked: [{
+        value: {
+            type:Number,
+        },
+        ofUser: {
             type: objId,
-            ref: "Stay"
-        },
-        charges: {
-            type: Number,
-            required: true
+            ref: "User"
         }
     }],
-    roomNo: [{
-        type: Number,
-        required: true
-    }],
-    duration: {
-        checkIn: {
-            type: Date,
-            required: true
-        },
-        checkOut: {
-            type: Date,
-            required: true
-        },
-        totalDuration:{
 
-        }
-    },
-    totalCharges: {
-        type: Number,
-        required: true
-    }
 });
 const StayBooking = mongoose.model('StayBooking', stayBookingSchema);
 module.exports = StayBooking;
