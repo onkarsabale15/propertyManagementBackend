@@ -27,13 +27,14 @@ const stayBookingSchema = mongoose.Schema({
     duration: {
         checkIn: {
             type: Date,
-            required: true,
-            unique: true
+            required: true
         },
         checkOut: {
             type: Date,
-            required: true,
-            unique: true
+            required: true
+        },
+        totalDuration:{
+
         }
     },
     totalCharges: {

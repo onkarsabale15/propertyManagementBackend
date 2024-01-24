@@ -25,16 +25,17 @@ const StaySchema = new mongoose.Schema(
       required: true,
     },
     rooms: [{
-      room: {
-        bedType: {
-          type: String,
-          enum: ["King", "Queen", "Master", "none"]
-        },
-        occupants: {
-          type: Number,
-          required: true
-        }
+      bedType: {
+        type: String,
+        enum: ["King", "Queen", "Master", "none"]
+      },
+      occupants: {
+        type: Number,
+        required: true
       }
+    }],
+    roomNumbers: [{
+      type: Number
     }],
     closedDates: [{
       type: Date,

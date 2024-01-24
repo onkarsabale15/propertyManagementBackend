@@ -34,17 +34,14 @@ async function validateRooms(rooms) {
             return false;
         };
         // Validate 'bedType' field
-        if (
-            !room.room.bedType ||
-            typeof room.room.bedType !== 'string'
-        ) {
+        if (typeof room.bedType !== 'string') {
             return false;
         };
 
         // Validate 'occupants' field
         if (
-            !room.room.occupants ||
-            typeof room.room.occupants !== 'number'
+            !room.occupants ||
+            typeof room.occupants !== 'number'
         ) {
             return false;
         };
@@ -52,6 +49,7 @@ async function validateRooms(rooms) {
     // All rooms in the array are valid
     return true;
 }
+
 
 
 const preAddChecks = async (body, images) => {
@@ -109,6 +107,7 @@ const preAddChecks = async (body, images) => {
             message: "All Fields and images are validated"
         };
     } catch (error) {
+        console.log(error)
         return {
             success: false,
             message: "Ran Into an Error While Validating the Fields"
