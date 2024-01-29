@@ -29,7 +29,6 @@ const bookStay = async(req,res)=>{
     const body = req.body;
     const user = req.user;
     const checks = await preBookChecks(body);
-    // console.log(checks)
     if(checks.success){
         const finalBook = await finalBooking(body,user);
         if(finalBook.success){

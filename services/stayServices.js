@@ -5,9 +5,10 @@ const Stay = require("../models/stay");
 const Amenity = require("../models/amenity");
 const saveImages = require("../helpers/saveFilesLocally");
 const { ObjectId } = require('mongodb');
-const AmenityBooking = require("../models/amenityBooking");
+
 const StayBooking = require("../models/stayBooking");
 const Booking = require("../models/booking");
+const { addCalendarEvent, convertDateToG_CalFormat } = require("./calendarServices");
 async function validateRoomNo(roomNo) {
     for (const i of roomNo) {
         if (!Number(i)) {
@@ -311,19 +312,19 @@ const finalBooking = async (body, user) => {
 
         const stay = await Stay.findById(body.room.id);
 
-        // Update stay bookings in parallel
+    //     // Update stay bookings in parallel
         await Promise.all(dateArray.map(async (date) => {
             const stayBooking = await StayBooking.findOne({ stay_id: stay._id, date: date });
             stayBooking.roomBooked.push({ value: body.roomNo, ofUser: user._id });
             await stayBooking.save();
         }));
 
-        // Calculate charges
+    //     // Calculate charges
         const totalAdultPrice = stay.price.adult * body.room.booking.adult * dateArray.length;
         const totalChildrenPrice = stay.price.children * body.room.booking.children * dateArray.length;
         const totalCharges = totalAdultPrice + totalChildrenPrice;
 
-        // Update user bookings
+    //     // Update user bookings
         const booking = await Booking.findById(user.previousBookings);
         const toPush = {
             room: {
@@ -354,7 +355,28 @@ const finalBooking = async (body, user) => {
         const booked = await booking.save();
 
         if (booked) {
-            return { success: true, message: "Successfully booked the stay.", data: booked };
+            const event = {
+                summary: `Booking For Room : ${toPush.roomNo}`,
+                description: `${stay.desc}`,
+                start: {
+                  dateTime: convertDateToG_CalFormat(body.duration.checkIn),
+                  timeZone: 'Asia/Kolkata'
+                },
+                end: {
+                  dateTime: convertDateToG_CalFormat(body.duration.checkOut),
+                  timeZone: 'Asia/Kolkata'
+                }
+                // ,
+                // 'attendees': [
+                //   { 'email': 'onkarsabale15@gmail.com' },
+                // ]
+              };
+              const eventAdded = await addCalendarEvent(event);
+              if(eventAdded){
+                  return { success: true, message: "Successfully booked the stay.", data: booked };
+              }else{
+                return { success: true, message: "Got into error while creating calendar event", data: booked };
+              }
         } else {
             return { success: false, message: "Got into an error while saving booking in the user profile." };
         }

@@ -36,7 +36,7 @@ app.listen(PORT, () => {
 });
 
 app.get("/",(req,res)=>{
-    res.send("Hello From Dream Care Developers")
+    res.send("<h1>Hello From Dream Care Developers</h1>")
 });
 app.get('/assets/images/:user_id/:imagePath', async (req, res) => {
     const { user_id, imagePath } = req.params;
