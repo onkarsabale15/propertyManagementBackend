@@ -59,7 +59,11 @@ const amenitySchema = mongoose.Schema({
             type: objId,
             ref: "AmenityBooking"
         }
-    }]
+    }],
+    status:{
+        type:Boolean,
+        default:false
+    }
 });
 const Amenity = mongoose.model("Amenity", amenitySchema);
 module.exports = Amenity;

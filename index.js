@@ -19,12 +19,14 @@ const authRoutes = require("./routes/authRoutes");
 const propertyRoutes = require("./routes/propertyRoutes");
 const amenityRoutes = require("./routes/amenityRoutes");
 const stayRoutes = require("./routes/stayRoutes");
+const commonRoutes = require("./routes/commonRoutes");
 
 /* using imported routes */
 app.use(authRoutes);
 app.use(propertyRoutes);
 app.use(amenityRoutes);
 app.use(stayRoutes);
+app.use(commonRoutes);
 
 /* Environment variables */
 const PORT = process.env.PORT;

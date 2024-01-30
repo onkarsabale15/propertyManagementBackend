@@ -1,4 +1,4 @@
-const { preAmenityAddChecks, addNewAmenity, getByPropId, existAndNotClosed, checkBookingDateExists, createAmenityDateSlots, createAmenityBooking, checkValidSlots } = require("../services/amenityServices")
+const { preAmenityAddChecks, addNewAmenity, getByPropId, existAndNotClosed, checkBookingDateExists, createAmenityDateSlots, createAmenityBooking, checkValidSlots, getAmenityByAmId } = require("../services/amenityServices")
 
 
 const addAmenityController = async (req, res) => {
@@ -31,6 +31,20 @@ const getAmenityByProperty = async (req, res) => {
     };
 };
 
+const getAmenityById = async(req,res)=>{
+    try {
+        const { amenity_id } = req.params;
+        const amenities = await getAmenityByAmId(amenity_id);
+        if (amenities.success) {
+            res.status(200).json({ type: amenities.success, message: amenities.message, data: amenities.data })
+        } else {
+            res.status(400).json({ type: false, message: amenities.message });
+        }
+    } catch (error) {
+        res.status(500).json({ type: false, message: "Internal Server Error" });
+    }
+}
+
 const bookAmenity = async (req, res) => {
     try {
         let { amenity_id, date, timeSlot } = req.body;
@@ -47,9 +61,11 @@ const bookAmenity = async (req, res) => {
                         notClosed.data = await notClosed.data.save()
                         const amenityBooking = await createAmenityBooking(notClosed.data, dateExists.data, timeSlot, user, date)
                         console.log(amenityBooking)
-                        // if(amenityBooking.success){
-                        //     res.status(201).json({type:true, message:amenityBooking.message, data:amenityBooking.data})
-                        // }
+                        if(amenityBooking.success){
+                            res.status(201).json({type:true, message:amenityBooking.message, data:amenityBooking.data})
+                        }else{
+                            res.status(400).json({type:false, message:amenityBooking.message})
+                        }
                     }
                 } else {
                     const amenityBooking = await createAmenityBooking(notClosed.data, dateExists.data, timeSlot, user, date);
@@ -71,4 +87,4 @@ const bookAmenity = async (req, res) => {
     }
 };
 
-module.exports = { addAmenityController, getAmenityByProperty, bookAmenity };
+module.exports = { addAmenityController, getAmenityByProperty, bookAmenity, getAmenityById };

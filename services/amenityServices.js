@@ -257,4 +257,18 @@ const checkValidSlots = async (amenity, timeSlot) => {
     };
 }
 
-module.exports = { preAmenityAddChecks, addNewAmenity, getByPropId, existAndNotClosed, checkBookingDateExists, createAmenityDateSlots, createAmenityBooking, checkValidSlots };
+
+const getAmenityByAmId = async(amenity_id)=>{
+    try {
+        const amenity = await Amenity.findById(amenity_id);
+        if(amenity){
+            return{success:true,message:"Got Amenity", data:amenity}
+        }else{
+            return{success:false,message:"Selected amenity doesnt exist"};
+        }
+    } catch (error) {
+        return{success:false,message:"Got into error while getting amenity"}
+    }
+}
+
+module.exports = { preAmenityAddChecks, addNewAmenity, getByPropId, existAndNotClosed, checkBookingDateExists, createAmenityDateSlots, createAmenityBooking, checkValidSlots, getAmenityByAmId };
