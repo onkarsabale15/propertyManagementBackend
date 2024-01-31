@@ -60,6 +60,11 @@ const propertySchema = mongoose.Schema({
     status:{
         type:Boolean,
         default:false
+    },
+    owner:{
+        type:objId,
+        ref:"User",
+        required:true
     }
 }, {
     timestamps: true

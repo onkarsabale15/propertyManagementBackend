@@ -1,4 +1,4 @@
-const { preAmenityAddChecks, addNewAmenity, getByPropId, existAndNotClosed, checkBookingDateExists, createAmenityDateSlots, createAmenityBooking, checkValidSlots, getAmenityByAmId } = require("../services/amenityServices")
+const { preAmenityAddChecks, addNewAmenity, getByPropId, existAndNotClosed, checkBookingDateExists, createAmenityDateSlots, createAmenityBooking, checkValidSlots, getAmenityByAmId, preUpdateChecks, updatingAmenity } = require("../services/amenityServices")
 
 
 const addAmenityController = async (req, res) => {
@@ -87,4 +87,21 @@ const bookAmenity = async (req, res) => {
     }
 };
 
-module.exports = { addAmenityController, getAmenityByProperty, bookAmenity, getAmenityById };
+const updateAmenity = async(req,res)=>{
+    let body = await JSON.parse(req.body.data[0]);
+    const images = await req.files.images;
+    const user = await req.user;
+    const checks = await preUpdateChecks(body, images, user);
+    if(checks.success){
+        const updated = await updatingAmenity(body,images,user);
+        if(updated.success){
+            res.status(200).json({type: true, message: updated.message, data: updated.data})
+        }else{
+            res.status(400).json({type: false, message: updated.message})
+        }
+    }else{
+        return{type:false, message:checks.message}
+    }
+}
+
+module.exports = { addAmenityController, getAmenityByProperty, bookAmenity, getAmenityById, updateAmenity };

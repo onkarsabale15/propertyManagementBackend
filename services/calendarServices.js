@@ -49,24 +49,6 @@ const addCalendarEvent = async (event) => {
 };
 
 
-// // Event for Google Calendar
-// let event = {
-//   'summary': `This is the summary.`,
-//   'description': `This is the description.`,
-//   'start': {
-//     'dateTime': convertDateToG_CalFormat(start),
-//     'timeZone': 'Asia/Kolkata'
-//   },
-//   'end': {
-//     'dateTime': convertDateToG_CalFormat(end),
-//     'timeZone': 'Asia/Kolkata'
-//   }
-//   // ,
-//   // 'attendees': [
-//   //   { 'email': 'onkarsabale15@gmail.com' },
-//   // ]
-// };
-
 
 // Get all the events between two dates
 const getEvents = async (dateTimeStart, dateTimeEnd) => {

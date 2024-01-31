@@ -1,5 +1,5 @@
 const validator = require("validator");
-const checkImages = require("../helpers/checkImages");
+const checkImages = require("../validators/checkImages");
 const Property = require("../models/property");
 const Stay = require("../models/stay");
 const Amenity = require("../models/amenity");

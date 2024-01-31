@@ -1,5 +1,5 @@
 const { ObjectId } = require('mongodb');
-const { preAddChecks, addNewProperty, processAndSaveImages, newProperty } = require("../services/propertyServices")
+const { preAddChecks, addNewProperty, processAndSaveImages, newProperty, getById, allProperties } = require("../services/propertyServices")
 const addProperty = async (req, res) => {
     const user = req.user;
     const body = await JSON.parse(req.body.data[0]);
@@ -29,8 +29,31 @@ const addProperty = async (req, res) => {
     };
 };
 
-const bookProperty = async()=>{
-
+const getPropertyById = async (req, res) => {
+    try {
+        const property_id = req.params.property_id;
+        const prop = await getById(property_id);
+        if (prop.success) {
+            res.status(200).json({ type: true, data: prop.data });
+        } else {
+            res.status(500).json({ type: false, message: "Property not found" });
+        }
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ type: false, message: "Internal Server Error" });
+    }
 }
 
-module.exports = { addProperty, bookProperty};
+const getAllProperties = async (req, res) => {
+    const page = req.query.page || 0;
+    const properties = await allProperties(page);
+    if (properties.success) {
+        res.status(200).json({ type: true, data: properties.data });
+    } else {
+        res.status(500).json({ type: false, message: properties.message });
+    }
+}
+
+
+
+module.exports = {addProperty, getPropertyById, getAllProperties};

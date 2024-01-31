@@ -1,4 +1,5 @@
 const mongoose = require("mongoose")
+const objId = mongoose.Schema.Types.ObjectId;
 const StaySchema = new mongoose.Schema(
   {
     title: {
@@ -44,6 +45,11 @@ const StaySchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    owner:{
+      type:objId,
+      ref:"User",
+      required:true
+  }
   },
   { timestamps: true }
 );

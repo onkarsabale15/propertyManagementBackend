@@ -15,7 +15,7 @@ async function searchByCoordinates(longitude, latitude) {
                     }
                 },
             },
-        });
+        }).limit(5);
         if (closestProperties) {
             return { success: true, message: "Properties found", data: closestProperties };
         } else {

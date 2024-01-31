@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 const objId = mongoose.Schema.Types.ObjectId;
 
@@ -22,7 +21,7 @@ const amenitySchema = mongoose.Schema({
     chargesType: {
         type: String,
         required: true,
-        enum: ["Hourly", "Per-Night"]
+        enum: ["Hourly", "Per-Night", "SlotWise"]
     },
     price: {
         adult: {
@@ -63,6 +62,11 @@ const amenitySchema = mongoose.Schema({
     status:{
         type:Boolean,
         default:false
+    },
+    owner:{
+        type:objId,
+        ref:"User",
+        required:true
     }
 });
 const Amenity = mongoose.model("Amenity", amenitySchema);

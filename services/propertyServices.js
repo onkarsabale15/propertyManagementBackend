@@ -1,6 +1,6 @@
 const Property = require("../models/property")
 const validator = require("validator");
-const areAllImagesValid = require("../helpers/checkImages");
+const areAllImagesValid = require("../validators/checkImages");
 const saveFilesLocally = require("../helpers/saveFilesLocally");
 const User = require("../models/user");
 
@@ -71,11 +71,35 @@ const processAndSaveImages = async (images, user_id, property) => {
 const newProperty = (body) => {
     try {
         const prop = new Property(body);
-        return { status: true, message: "new unsaved Property document of MongoDB created.", data: prop };
+        return { success: true, message: "new unsaved Property document of MongoDB created.", data: prop };
     } catch (error) {
         console.log(error);
-        return { status: false, message: "Got error while creating Property" }
+        return { success: false, message: "Got error while creating Property" }
     };
 };
 
-module.exports = { preAddChecks, addNewProperty, processAndSaveImages, newProperty };
+const getById = async(property_id)=>{
+    try{
+    const property = await Property.findById(property_id).populate("configurations.stay configurations.amenities");
+    if(property){
+      return {success: true, data: property};
+    }else{
+      return {success: false, message: "Property not found"};
+    }
+  }catch(error){
+    console.log(error)
+    return {status: false, message:"Got into error while getting property."};
+  }
+};
+
+const allProperties = async(page)=>{
+    try{
+    const properties = await Property.find({status: true}).populate("configurations.stay configurations.amenities").skip(page).limit(5);
+    return {success: true, data: properties};
+  }catch(error){
+    console.log(error);
+    return {success: false, message: "Error fetching properties"};
+  }
+}
+
+module.exports = { preAddChecks, addNewProperty, processAndSaveImages, newProperty, getById, allProperties };

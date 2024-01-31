@@ -1,6 +1,6 @@
 const { ObjectId } = require('mongodb');
 const Amenity = require("../models/amenity");
-const checkImages = require("../helpers/checkImages");
+const checkImages = require("../validators/checkImages");
 const validator = require("validator");
 const validateActiveTiming = require("../helpers/validateTimes")
 const saveImages = require("../helpers/saveFilesLocally");
@@ -8,7 +8,9 @@ const Property = require("../models/property");
 const AmenityBooking = require("../models/amenityBooking");
 const generateTimeSlots = require('../helpers/generateTimeslot');
 const Booking = require("../models/booking")
-
+const validators = require("../validators/index")
+const fs = require("fs")
+const path = require("path")
 const checkAmenityName = async (name) => {
     const amenityExists = await Amenity.findOne({ name: name });
     if (amenityExists) {
@@ -49,7 +51,7 @@ const checkAmenityFields = async (body) => {
     if (validator.isEmpty(description)) {
         return { success: false, message: "Please enter amenity description", action: null };
     };
-    if (!(chargesType == "Hourly" || chargesType == "Per-Night")) {
+    if (!(chargesType == "Hourly" || chargesType == "Per-Night" || chargesType == "SlotWise")) {
         return { success: false, message: "Enter valid charges type", action: null };
     };
     if (!(Number(maximumAllowedNumber))) {
@@ -59,7 +61,7 @@ const checkAmenityFields = async (body) => {
         return { success: false, message: "Enter valid prices", action: null };
     };
     if (!validateActiveTiming(activeTiming)) {
-        return { success: false, message: "Enter valid Active Timings", action: null };
+        return { success: false, message: "Enter valid Active Timings and Slot Width", action: null };
     };
     return { success: true, message: "All amenity fields are validated", action: null };
 };
@@ -74,9 +76,10 @@ const addNewAmenity = async (body, images, user, property_id) => {
                 if (isPresent) {
                     const user_id = new ObjectId(user._id).toString();
                     const newAmenity = await new Amenity(body);
+                    newAmenity.owner = user._id;
                     const propertyId = new ObjectId(property_id).toString();
                     const newAmenityId = new ObjectId(newAmenity._id).toString();
-                    const savedImages = await saveImages(images, user_id, propertyId, newAmenityId);
+                    const savedImages = await saveImages(images, user_id);
                     newAmenity.images = savedImages.data;
                     const savedAmenity = await newAmenity.save();
                     await property.configurations.amenities.push(newAmenity._id);
@@ -258,17 +261,133 @@ const checkValidSlots = async (amenity, timeSlot) => {
 }
 
 
-const getAmenityByAmId = async(amenity_id)=>{
+const getAmenityByAmId = async (amenity_id) => {
     try {
         const amenity = await Amenity.findById(amenity_id);
-        if(amenity){
-            return{success:true,message:"Got Amenity", data:amenity}
-        }else{
-            return{success:false,message:"Selected amenity doesnt exist"};
+        if (amenity) {
+            return { success: true, message: "Got Amenity", data: amenity }
+        } else {
+            return { success: false, message: "Selected amenity doesnt exist" };
         }
     } catch (error) {
-        return{success:false,message:"Got into error while getting amenity"}
+        return { success: false, message: "Got into error while getting amenity" }
     }
 }
 
-module.exports = { preAmenityAddChecks, addNewAmenity, getByPropId, existAndNotClosed, checkBookingDateExists, createAmenityDateSlots, createAmenityBooking, checkValidSlots, getAmenityByAmId };
+const canMakeChanges = async (user, id) => {
+    try {
+        const amenity = await Amenity.findById(id);
+        if (amenity) {
+            if (amenity.owner.toString() == user._id.toString()) {
+                return { success: true, message: "User can make changes" }
+            } else {
+                return { success: false, message: "You dont have access to make changes, Only owner can make changes" }
+            }
+        } else {
+            return { success: false, message: "Unable to find selected amenity" }
+        }
+    } catch (error) {
+        return { success: false, message: "Got into error while checking access." }
+    }
+}
+
+const preUpdateChecks = async (body, images, user) => {
+    const change = await canMakeChanges(user, body._id)
+    if (change.success) {
+        const isValid = await validators.amenityValidationSchema.validate(body);
+        if (isValid.error) {
+            return { success: false, message: isValid.error.details[0].message }
+        } else {
+            if (images || images?.length > 0) {
+                const validImages = await validators.imageValidation(images)
+                if (validImages.success) {
+                    return { success: true, message: "All Data and Images are Valid" }
+                }
+            } else {
+                return { success: true, message: "All Fields are valid" }
+            }
+        }
+    } else {
+        return change;
+    }
+}
+
+const updatingAmenity = async (body, images, user) => {
+    try {
+        const amenity = await Amenity.findById(body._id);
+        if (images) {
+            const savedImages = await saveImages(await images, await user._id.toString());
+            if (savedImages.success) {
+                body.images.push(...savedImages.data)
+            } else {
+                return { success: false, message: savedImages.message }
+            }
+        }
+        if (amenity.images != body.images) {
+            const unusedImages = amenity.images.filter(image => !body.images.includes(image));
+
+            // Remove unused images from the filesystem
+            for (const image of unusedImages) {
+                fs.unlink(path.join(__dirname, `../uploads${image}`), (err) => {
+                    if (err) {
+                        console.error(`Error deleting file: ${err}`);
+                        return { success: false, message: `Error deleting unwanted files` };
+                    }
+                });
+            }
+
+            // Update amenity.images to only include images present in both arrays
+            amenity.images = amenity.images.filter(image => body.images.includes(image));
+        }
+        if (body.name != amenity.name) {
+            amenity.name = body.name
+        };
+        if (amenity.type != body.type) {
+            amenity.type = body.type;
+        }
+        if (body.description != amenity.description) {
+            amenity.description = body.description;
+        }
+        if (amenity.maximumAllowedNumber != body.maximumAllowedNumber) {
+            amenity.maximumAllowedNumber = body.maximumAllowedNumber;
+        }
+        if (amenity.chargesType != body.chargesType) {
+            amenity.chargesType = body.chargesType;
+        }
+        if (amenity.price != body.price) {
+            amenity.price = body.price;
+        }
+        if (body.activeTiming !== amenity.activeTiming) {
+            amenity.activeTiming = body.activeTiming;
+        }
+        if (body.closedDates != amenity.closedDates) {
+            amenity.closedDates = body.closedDates;
+        }
+        if (amenity.status != body.status) {
+            amenity.status = body.status;
+        }
+        const saved = await amenity.save();
+        if (saved) {
+            return { success: true, message: "Amenity Updated Successfully", data: saved }
+        } else {
+            return { success: false, message: "Error Updating Amenity" }
+        }
+    } catch (error) {
+        return { success: false, message: "Got into error while updating amenity" }
+    }
+}
+
+
+module.exports = {
+    preAmenityAddChecks,
+    addNewAmenity,
+    getByPropId,
+    existAndNotClosed,
+    checkBookingDateExists,
+    createAmenityDateSlots,
+    createAmenityBooking,
+    checkValidSlots,
+    getAmenityByAmId,
+    preUpdateChecks,
+    updatingAmenity
+};
