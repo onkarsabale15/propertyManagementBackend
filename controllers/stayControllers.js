@@ -48,6 +48,11 @@ const updateStay = async(req,res)=>{
     const checks = await preUpdateChecks(body,images, user);
     if(checks.success){
         const updated = await updatingStay(body,images,user, checks.data);
+        if(updated){
+            return res.status(updated.status).json({type:true, message:updated.message, data:updated.data})
+        }else{
+            return res.status(updated.status).json({type:false, message:updated.message})
+        }
     }else{
         res.status(checks.status).json({type:checks.success, message:checks.message})
     }

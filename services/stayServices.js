@@ -313,19 +313,19 @@ const finalBooking = async (body, user) => {
 
         const stay = await Stay.findById(body.room.id);
 
-        //     // Update stay bookings in parallel
+        // Update stay bookings in parallel
         await Promise.all(dateArray.map(async (date) => {
             const stayBooking = await StayBooking.findOne({ stay_id: stay._id, date: date });
             stayBooking.roomBooked.push({ value: body.roomNo, ofUser: user._id });
             await stayBooking.save();
         }));
 
-        //     // Calculate charges
+        // Calculate charges
         const totalAdultPrice = stay.price.adult * body.room.booking.adult * dateArray.length;
         const totalChildrenPrice = stay.price.children * body.room.booking.children * dateArray.length;
         const totalCharges = totalAdultPrice + totalChildrenPrice;
 
-        //     // Update user bookings
+        // Update user bookings
         const booking = await Booking.findById(user.previousBookings);
         const toPush = {
             room: {
@@ -481,7 +481,11 @@ const updatingStay = async (body, images, user, stay) => {
             stay.status = body.status
         }
         const saved = await stay.save();
-        console.log(saved)
+        if(saved){
+            return { success: true, message: "Successfully updated the stay.", data: saved, status:200 }
+        }else{
+            return { success: false, message: "Got into an error while updating the stay.", status: 500 }
+        }
     } catch (error) {
         console.log(error);
         return { success: false, message: "Got into an error while updating the stay.", status: 500 }
