@@ -302,6 +302,8 @@ const preUpdateChecks = async (body, images, user) => {
                 const validImages = await validators.imageValidation(images)
                 if (validImages.success) {
                     return { success: true, message: "All Data and Images are Valid" }
+                }else{
+                    return { success: false, message: validImages.message }
                 }
             } else {
                 return { success: true, message: "All Fields are valid" }

@@ -1,4 +1,4 @@
-const {preAddChecks, checkPropAndAddStay, getByPropId, checkBookingDateExists, createAmenityDateSlots, existAndNotClosed, preBookChecks, finalBooking } = require("../services/stayServices");
+const {preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay } = require("../services/stayServices");
 const formatDate = require("../helpers/dateFormater")
 const addStay = async (req, res) => {
     let body = await JSON.parse(req.body.data[0]);
@@ -41,4 +41,17 @@ const bookStay = async(req,res)=>{
     }
 }
 
-module.exports = { addStay, getStaysByProp, bookStay};
+const updateStay = async(req,res)=>{
+    let body = await JSON.parse(req.body.data[0]);
+    const images = await req.files.images;
+    const user = await req.user;
+    const checks = await preUpdateChecks(body,images, user);
+    if(checks.success){
+        const updated = await updatingStay(body,images,user, checks.data);
+    }else{
+        res.status(checks.status).json({type:checks.success, message:checks.message})
+    }
+}
+
+
+module.exports = { addStay, getStaysByProp, bookStay, updateStay};

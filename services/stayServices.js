@@ -2,13 +2,14 @@ const validator = require("validator");
 const checkImages = require("../validators/checkImages");
 const Property = require("../models/property");
 const Stay = require("../models/stay");
-const Amenity = require("../models/amenity");
 const saveImages = require("../helpers/saveFilesLocally");
 const { ObjectId } = require('mongodb');
-
+const fs = require("fs");
 const StayBooking = require("../models/stayBooking");
 const Booking = require("../models/booking");
 const { addCalendarEvent, convertDateToG_CalFormat } = require("./calendarServices");
+const validators = require("../validators/index");
+const path = require("path")
 async function validateRoomNo(roomNo) {
     for (const i of roomNo) {
         if (!Number(i)) {
@@ -187,7 +188,7 @@ const getByPropId = async (property_id) => {
         }
     } catch (error) {
         console.log(error);
-        return { success: false, message: "Unable to get amenity for the selected property." }
+        return { success: false, message: "Unable to get stay for the selected property." }
     };
 };
 
@@ -312,19 +313,19 @@ const finalBooking = async (body, user) => {
 
         const stay = await Stay.findById(body.room.id);
 
-    //     // Update stay bookings in parallel
+        //     // Update stay bookings in parallel
         await Promise.all(dateArray.map(async (date) => {
             const stayBooking = await StayBooking.findOne({ stay_id: stay._id, date: date });
             stayBooking.roomBooked.push({ value: body.roomNo, ofUser: user._id });
             await stayBooking.save();
         }));
 
-    //     // Calculate charges
+        //     // Calculate charges
         const totalAdultPrice = stay.price.adult * body.room.booking.adult * dateArray.length;
         const totalChildrenPrice = stay.price.children * body.room.booking.children * dateArray.length;
         const totalCharges = totalAdultPrice + totalChildrenPrice;
 
-    //     // Update user bookings
+        //     // Update user bookings
         const booking = await Booking.findById(user.previousBookings);
         const toPush = {
             room: {
@@ -359,24 +360,24 @@ const finalBooking = async (body, user) => {
                 summary: `Booking For Room : ${toPush.roomNo}`,
                 description: `${stay.desc}`,
                 start: {
-                  dateTime: convertDateToG_CalFormat(body.duration.checkIn),
-                  timeZone: 'Asia/Kolkata'
+                    dateTime: convertDateToG_CalFormat(body.duration.checkIn),
+                    timeZone: 'Asia/Kolkata'
                 },
                 end: {
-                  dateTime: convertDateToG_CalFormat(body.duration.checkOut),
-                  timeZone: 'Asia/Kolkata'
+                    dateTime: convertDateToG_CalFormat(body.duration.checkOut),
+                    timeZone: 'Asia/Kolkata'
                 }
                 // ,
                 // 'attendees': [
                 //   { 'email': 'onkarsabale15@gmail.com' },
                 // ]
-              };
-              const eventAdded = await addCalendarEvent(event);
-              if(eventAdded){
-                  return { success: true, message: "Successfully booked the stay.", data: booked };
-              }else{
+            };
+            const eventAdded = await addCalendarEvent(event);
+            if (eventAdded) {
+                return { success: true, message: "Successfully booked the stay.", data: booked };
+            } else {
                 return { success: true, message: "Got into error while creating calendar event", data: booked };
-              }
+            }
         } else {
             return { success: false, message: "Got into an error while saving booking in the user profile." };
         }
@@ -385,6 +386,106 @@ const finalBooking = async (body, user) => {
         return { success: false, message: "Got into an error while creating the booking." };
     }
 };
+const canUpdateStay = async (stay_id, user_id) => {
+    if (ObjectId.isValid(stay_id)) {
+        let stay = await Stay.findById(stay_id);
+        if (stay.owner.equals(user_id)) {
+            return { success: true, message: "Stay can be updated", data : stay }
+        }
+        else {
+            return { success: false, message: "You are not authorized to update this stay.", status: 401 }
+        }
+    } else {
+        return { success: false, message: "Invalid stay id", status: 400 }
+    }
 
+}
+const preUpdateChecks = async (body, images, user) => {
+    try {
+        const canUpdate = await canUpdateStay(body._id, user._id);
+        if (canUpdate.success) {
+            const isValid = validators.stayValidationSchema.validate(body);
+            if (isValid.error) {
+                return { success: false, message: isValid.error.details[0].message, status: 400 }
+            } else {
+                if (images || images?.length > 0) {
+                    const validImages = await validators.imageValidation(images)
+                    if (validImages.success) {
+                        return { success: true, message: "All Data and Images are Valid", data:canUpdate.data, status: 200 }
+                    } else {
+                        return { success: false, message: validImages.message, status: 400 }
+                    }
+                } else {
+                    return { success: true, message: "All Fields are valid", data:canUpdate.data, status: 200 }
+                }
+            }
+        } else {
+            return canUpdate;
+        }
+    } catch (error) {
+        console.log(error)
+        return { success: false, message: "Got into an error while validating the data.", status: 500 }
+    }
+}
 
-module.exports = { preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking };
+const updatingStay = async (body, images, user, stay) => {
+    try {
+        if (images) {
+            const savedImages = await saveImages(await images, await user._id.toString());
+            if (savedImages.success) {
+                body.images.push(...savedImages.data)
+            } else {
+                return { success: false, message: savedImages.message }
+            }
+        }
+        if (stay.images != body.images) {
+            const unusedImages = stay.images.filter(image => !body.images.includes(image));
+
+            // Remove unused images from the filesystem
+            for (const image of unusedImages) {
+                fs.unlink(path.join(__dirname, `../uploads${image}`), (err) => {
+                    if (err) {
+                        console.error(`Error deleting file: ${err}`);
+                        return { success: false, message: `Error deleting unwanted files` };
+                    }
+                });
+            }
+            // Update stay.images to only include images present in both arrays
+            stay.images = stay.images.filter(image => body.images.includes(image));
+        }
+        if(stay.title!= body.title){
+            stay.title = body.title
+        }
+        if(stay.images!= body.images){
+            stay.images = body.images
+        }
+        if(stay.price!=body.price){
+            stay.price = body.price
+        }
+        if(stay.maxPeople!=body.maxPeople){
+            stay.maxPeople = body.maxPeople
+        }
+        if(stay.desc!=body.desc){
+            stay.desc = body.desc
+        }
+        if(stay.rooms!=body.rooms){
+            stay.rooms = body.rooms
+        }
+        if(stay.roomNumbers!=body.roomNumbers){
+            stay.roomNumbers = body.roomNumbers
+        }
+        if(stay.closedDates != body.closedDates){
+            stay.closedDates = body.closedDates
+        }
+        if(stay.status!=body.status){
+            stay.status = body.status
+        }
+        const saved = await stay.save();
+        console.log(saved)
+    } catch (error) {
+        console.log(error);
+        return { success: false, message: "Got into an error while updating the stay.", status: 500 }
+    }
+}
+
+module.exports = { preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay };
