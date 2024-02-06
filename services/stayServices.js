@@ -4,6 +4,7 @@ const Property = require("../models/property");
 const Stay = require("../models/stay");
 const saveImages = require("../helpers/saveFilesLocally");
 const { ObjectId } = require('mongodb');
+const mongoose = require("mongoose");
 const fs = require("fs");
 const StayBooking = require("../models/stayBooking");
 const Booking = require("../models/booking");
@@ -58,50 +59,19 @@ async function validateRooms(rooms) {
 
 const preAddChecks = async (body, images) => {
     try {
-        const { title, price, maxPeople, desc, rooms, roomNumbers } = body;
+        const { title} = body;
         const uniqueTitle = await Stay.findOne({ title: title });
-        if (uniqueTitle) {
-            return {
-                success: false,
-                message: `${title} already exists`
-            };
+        const isValid = validators.stayValidationSchema.validate(body);
+        if(isValid.error){
+            return {success:false,message:isValid.error.details[0].message}
+        }else{
+            if (uniqueTitle) {
+                return {
+                    success: false,
+                    message: `${title} already exists`
+                };
+            }
         }
-        if (validator.isEmpty(title)) {
-            return {
-                success: false,
-                message: "Title should Not Be Empty."
-            };
-        };
-        if (!(Number(price.adult) && Number(price.children))) {
-            return {
-                success: false,
-                message: "Adult Pricing and Children Pricing are Required."
-            };
-        };
-        if (!Number(maxPeople)) {
-            return {
-                success: false,
-                message: "Enter Valid Number Value for maximum people allowed."
-            };
-        };
-        if (validator.isEmpty(desc)) {
-            return {
-                success: false,
-                message: "Description should not be Epmty."
-            };
-        };
-        if (!(await validateRooms(rooms))) {
-            return {
-                success: false,
-                message: "Please Add Valid Rooms."
-            };
-        };
-        if (!(await validateRoomNo(roomNumbers))) {
-            return {
-                success: false,
-                message: "Enter valid Room Numbers"
-            };
-        };
         const checkedImages = await checkImages(images);
         if (!checkedImages.success) {
             return checkedImages;
@@ -111,7 +81,6 @@ const preAddChecks = async (body, images) => {
             message: "All Fields and images are validated"
         };
     } catch (error) {
-        console.log(error)
         return {
             success: false,
             message: "Ran Into an Error While Validating the Fields"
@@ -123,8 +92,10 @@ const checkPropAndAddStay = async (body, property_id, images, user) => {
     if (validator.isMongoId(property_id)) {
         const isPresent = await user.userProperties.includes(new ObjectId(property_id));
         if (isPresent) {
+            body.owner = await user._id;
             user_id = new ObjectId(user._id).toString();
             property_id = new ObjectId(property_id).toString();
+            console.log(body)
             try {
                 const newStay = new Stay(body);
                 const property = await Property.findById(property_id);
@@ -133,15 +104,33 @@ const checkPropAndAddStay = async (body, property_id, images, user) => {
                     const savedImages = await saveImages(images, user_id);
                     if (savedImages.success) {
                         newStay.images = savedImages.data;
+                        console.log(newStay);
                         const stay = await newStay.save();
-                        await property.save();
-                        return {
-                            success: true,
-                            message: "Successfully added new Stay to your property.",
-                            data: stay
-                        };
+                        if(stay){
+                            const prop = await property.save();
+                            if(prop){
+                                return {
+                                    success: true,
+                                    message: "Successfully added new Stay to your property.",
+                                    data: stay
+                                };
+                            }else{
+                                return{
+                                    success:false,
+                                    message:"Got into error while adding stay to the property"
+                                }
+                            }
+                        }else{
+                            return{
+                                success:false,
+                                message:"Got into error while saving Stay"
+                            }
+                        }
                     } else {
-                        return savedImages;
+                        return {
+                            success:false,
+                            message:savedImages.message
+                        };
                     };
                 } else {
                     return {
@@ -492,4 +481,16 @@ const updatingStay = async (body, images, user, stay) => {
     }
 }
 
-module.exports = { preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay };
+const getCheckins = async (checkIn,checkOut, stay_id) => {
+    const stayExists = await Stay.find().select("_id roomNumbers");
+    const dateArray = await generateDateArray(checkIn, checkOut);
+    dateArray.pop();
+    // if(stayExists){
+    //     const stayBookings = await StayBooking.find({stay_id: stay_id});
+    //     console.log(stayBookings)
+    // }else{
+    //     return { success: false, message: "Stay does not exist", status: 400 }
+    // }
+}
+
+module.exports = { preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay, getCheckins };

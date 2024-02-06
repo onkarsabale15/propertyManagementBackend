@@ -6,7 +6,7 @@ const stayBookingSchema = mongoose.Schema({
         ref: "Stay"
     },
     date: {
-        type: String,
+        type: String,//2024/01/27 ie: yyyy/mm/dd format
         required: true
     },
     roomBooked: [{

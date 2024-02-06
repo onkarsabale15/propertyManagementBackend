@@ -8,14 +8,8 @@ const StaySchema = new mongoose.Schema(
     },
     images: [{ type: String }],
     price: {
-      adult: {
-        type: Number,
-        required: true,
-      },
-      children: {
-        type: Number,
-        required: true,
-      }
+      type:Number,
+      required: true
     },
     maxPeople: {
       type: Number,
@@ -33,7 +27,13 @@ const StaySchema = new mongoose.Schema(
       occupants: {
         type: Number,
         required: true
-      }
+      },
+      roomFacilities: [{
+        type: String
+      }]
+    }],
+    facilities:[{
+      type: String
     }],
     roomNumbers: [{
       type: Number

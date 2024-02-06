@@ -1,4 +1,4 @@
-const {preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay } = require("../services/stayServices");
+const {preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay, getCheckins } = require("../services/stayServices");
 const formatDate = require("../helpers/dateFormater")
 const addStay = async (req, res) => {
     let body = await JSON.parse(req.body.data[0]);
@@ -58,5 +58,10 @@ const updateStay = async(req,res)=>{
     }
 }
 
+const getByCheckInCheckOut = async(req,res)=>{
+    const {checkIn, checkOut} = req.query;
+    const stay_id = req.params.stay_id;
+    const stays = await getCheckins(checkIn,checkOut, stay_id);
+}
 
-module.exports = { addStay, getStaysByProp, bookStay, updateStay};
+module.exports = { addStay, getStaysByProp, bookStay, updateStay, getByCheckInCheckOut};
