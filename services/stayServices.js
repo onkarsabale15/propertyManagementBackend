@@ -481,16 +481,52 @@ const updatingStay = async (body, images, user, stay) => {
     }
 }
 
-const getCheckins = async (checkIn,checkOut, stay_id) => {
-    const stayExists = await Stay.find().select("_id roomNumbers");
-    const dateArray = await generateDateArray(checkIn, checkOut);
-    dateArray.pop();
-    // if(stayExists){
-    //     const stayBookings = await StayBooking.find({stay_id: stay_id});
-    //     console.log(stayBookings)
-    // }else{
-    //     return { success: false, message: "Stay does not exist", status: 400 }
-    // }
+async function findAvailableStays(checkIn, checkOut) {
+    const dateArray = generateDateArray(checkIn, checkOut);
+
+    try {
+        // Find stays with bookings within the specified date range
+        const staysWithBookings = await StayBooking.find({
+            date: { $in: dateArray }
+        })
+
+        // Find stays that do not have bookings or closed dates during the specified date range
+        const availableStays = await Stay.find({
+            _id: { $nin: staysWithBookings },
+            closedDates: { $not: { $elemMatch: { $in: dateArray } } }
+        }).populate('owner', 'username');
+
+        // Filter stays with available rooms
+        const result = availableStays.map(stay => {
+            // Filter available rooms for the stay
+            const availableRooms = stay.roomNumbers.filter(roomNumber => {
+                // Check if the room is available for each date in the date range
+                return dateArray.every(date => {
+                    return !staysWithBookings.some(booking => {
+                        return booking.stay_id.equals(stay._id) && booking.date === date && booking.roomBooked.some(room => room.value === roomNumber);
+                    });
+                });
+            });
+
+            // If at least one room is available, include the stay in the result
+            if (availableRooms.length > 0) {
+                return { stay, availableRooms };
+            }
+
+            return null;
+        }).filter(Boolean);
+
+        return result;
+    } catch (error) {
+        console.error(error);
+        throw new Error('Error finding available stays.');
+    }
+}
+
+
+const getCheckins = async (checkIn,checkOut) => {
+    const stayExists = await findAvailableStays(checkIn, checkOut);
+    console.log(stayExists)
 }
 
 module.exports = { preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay, getCheckins };

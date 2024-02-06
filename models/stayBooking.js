@@ -11,14 +11,13 @@ const stayBookingSchema = mongoose.Schema({
     },
     roomBooked: [{
         value: {
-            type:Number,
+            type:Number,//contains roomNumber
         },
         ofUser: {
             type: objId,
             ref: "User"
         }
     }],
-
 });
 const StayBooking = mongoose.model('StayBooking', stayBookingSchema);
 module.exports = StayBooking;
