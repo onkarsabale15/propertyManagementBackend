@@ -1,18 +1,16 @@
-const formidable = require('formidable');
+const multer = require('multer');
+
+const upload = multer({ dest: 'uploads/' }); // Specify destination folder for uploaded files
 
 const formParser = (req, res, next) => {
-    const form = new formidable.IncomingForm({ multiples: true });
-
-    form.parse(req, (err, fields, files) => {
-        if (err) {
-            console.error('Error:', err);
-            res.status(500).send('Internal Server Error');
-            return;
-        }
-        req.body = fields;
-        req.files = files;
-        next();
-    });
+  upload.any()(req, res, (err) => {
+    if (err) {
+      console.error('Error:', err);
+      res.status(500).send('Internal Server Error');
+      return;
+    }
+    next();
+  });
 };
 
 module.exports = formParser;

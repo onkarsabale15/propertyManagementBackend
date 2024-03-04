@@ -2,7 +2,7 @@
 const validator = require("validator");
 
 function validatePassword(password) {
-  const allowedCharsRegex = /^[A-Za-z\d@$!%^&*_+=]+$/;
+  const allowedCharsRegex = /^[A-Za-z\d@$!%^&*_+=#]+$/;
 
   if (password.length < 8) {
     throw new Error("Password should be at least 8 characters long.");

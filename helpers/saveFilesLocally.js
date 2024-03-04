@@ -17,8 +17,8 @@ const saveFilesLocally = async (images, user_id) => {
 
     try {
         images.forEach((image, index) => {
-            if (image && image.filepath) {
-                const dimensions = sizeOf(image.filepath);
+            if (image && image.path) {
+                const dimensions = sizeOf(image.path);
                 // Check if the dimensions indicate it's an image
                 if (dimensions.width > 0 && dimensions.height > 0) {
                     const timestamp = new Date().toISOString().replace(/[-TZ:.]/g, '');
@@ -27,8 +27,8 @@ const saveFilesLocally = async (images, user_id) => {
 
                     // Use try-catch for file operations
                     try {
-                        fs.writeFileSync(filePath, fs.readFileSync(image.filepath));
-                        fs.unlinkSync(image.filepath);
+                        fs.writeFileSync(filePath, fs.readFileSync(image.path));
+                        fs.unlinkSync(image.path);
                         savedImageNames.push(`/${user_id}/${fileName}`);
                     } catch (fileError) {
                         throw new Error("Unable to save images. Please try again.");

@@ -1,5 +1,6 @@
 const fs = require("fs");
 const sizeOf = require('image-size');
+const validator = require("validator");
 
 const checkImages = async (images) => {
     const invalidImages = [];
@@ -10,22 +11,22 @@ const checkImages = async (images) => {
         };
     };
     const allImagesValid = images.every((image) => {
-        if (image && image.filepath) {
+        if (image && image.path) {
             try {
-                const dimensions = sizeOf(image.filepath);
+                const dimensions = sizeOf(image.path);
                 if (dimensions.width && dimensions.height) {
                     return true;
                 } else {
                     invalidImages.push({
-                        filepath: image.filepath,
+                        filepath: image.path,
                         filename: image.filename || "Unknown",
-                        originalFilename: image.originalFilename || "Unknown"
+                        originalFilename: image.originalname || "Unknown"
                     });
                     return false;
                 }
             } catch (error) {
                 invalidImages.push(
-                    image.originalFilename || "Unknown"
+                    image.originalname || "Unknown"
                 );
                 return false;
             };

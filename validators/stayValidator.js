@@ -12,6 +12,7 @@ const stayValidationSchema = Joi.object({
         roomFacilities: Joi.array().items(Joi.string()),
         _id:Joi.objectId()
     })),
+    city:Joi.string(),
     roomNumbers: Joi.array().items(Joi.number()),
     closedDates: Joi.array().items(Joi.string()),
     status: Joi.boolean().default(false),

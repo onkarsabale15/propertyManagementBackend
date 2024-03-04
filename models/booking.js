@@ -64,6 +64,15 @@ const bookingSchema = mongoose.Schema({
         }
     }],
     stayBooking: [{
+        createdOn:{
+            type:Date,
+            default:Date.now()
+        },
+        status:[{
+            type:String,
+            default:"created",
+            enum:["created", "paid", "checkedIn", "checkedOut", "cancelled"]
+        }],
         room: {
             id: {
                 type: objId,
@@ -123,6 +132,8 @@ const bookingSchema = mongoose.Schema({
             }
         }
     }]
+}, {
+    timestamps: true
 });
 
 const Booking = mongoose.model("Booking", bookingSchema);

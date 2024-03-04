@@ -6,8 +6,11 @@ const mongoose = require('mongoose');
 const helmet = require("helmet");
 const app = express();
 const path = require("path")
-// const cors = require("cors")
-// app.use(cors({}));
+const cors = require("cors")
+const corsOptions = {
+    origin: '*',
+  };
+app.use(cors(corsOptions));
 
 /* Middlewares to use */
 app.use(express.json({ limit: '10mb' }));

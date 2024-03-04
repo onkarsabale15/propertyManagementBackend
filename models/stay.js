@@ -11,6 +11,10 @@ const StaySchema = new mongoose.Schema(
       type:Number,
       required: true
     },
+    city:{
+      type: String,
+      required: true
+    },
     maxPeople: {
       type: Number,
       required: true,
@@ -55,4 +59,4 @@ const StaySchema = new mongoose.Schema(
 );
 const Stay = mongoose.model("Stay", StaySchema);
 
-module.exports = Stay
+module.exports = Stay;

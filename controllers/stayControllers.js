@@ -1,67 +1,109 @@
-const {preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay, getCheckins } = require("../services/stayServices");
+const { preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay, getCheckins, getStayById, getAllStayBookings, allStays } = require("../services/stayServices");
 const formatDate = require("../helpers/dateFormater")
 const addStay = async (req, res) => {
-    let body = await JSON.parse(req.body.data[0]);
+    let body = await JSON.parse(req.body.data);
     const property_id = await body.property_id;
-    body = await body.fields;
-    const images = await req.files.images;
+    body = body.fields;
+    const images = await req.files;
     const user = await req.user;
     const check = await preAddChecks(body, images);
-    if(check.success){
-        const added = await checkPropAndAddStay(body,property_id, images, user);
-        res.status(201).json({type:true, message:added.message, data:added.data});
-    }else{
-        res.status(400).json({type:false, message:check.message});
+    if (check.success) {
+        const added = await checkPropAndAddStay(body, property_id, images, user);
+        res.status(201).json({ type: true, message: added.message, data: added.data });
+    } else {
+        console.log(check)
+        res.status(400).json({ type: false, message: check.message });
     };
 };
 
-const getStaysByProp = async(req,res)=>{
-    const {property_id}=req.params;
+const getStaysByProp = async (req, res) => {
+    const { property_id } = req.params;
     const stays = await getByPropId(property_id)
-    if(stays.success){
-        res.status(200).json({type:true,message:stays.message,data:stays.data})
-    }else{
-        res.status(404).json({type:false, message:stays.message})
+    if (stays.success) {
+        res.status(200).json({ type: true, message: stays.message, data: stays.data })
+    } else {
+        res.status(404).json({ type: false, message: stays.message })
     }
 };
 
-const bookStay = async(req,res)=>{
+const bookStay = async (req, res) => {
     const body = req.body;
     const user = req.user;
     const checks = await preBookChecks(body);
-    if(checks.success){
-        const finalBook = await finalBooking(body,user);
-        if(finalBook.success){
-            res.status(201).json({type:true, message:finalBook.message, data:finalBook.data})
-        }else{
-            res.status(400).json({type:false, message:finalBook.message})
+    if (checks.success) {
+        const finalBook = await finalBooking(body, user);
+        if (finalBook.success) {
+            res.status(201).json({ type: true, message: finalBook.message, data: finalBook.data })
+        } else {
+            res.status(400).json({ type: false, message: finalBook.message })
         }
-    }else{
-        res.status(400).json({type:false,message:checks.message})
+    } else {
+        res.status(400).json({ type: false, message: checks.message })
     }
 }
 
-const updateStay = async(req,res)=>{
-    let body = await JSON.parse(req.body.data[0]);
-    const images = await req.files.images;
+const updateStay = async (req, res) => {
+    // console.log(req.body)
+    let body = await JSON.parse(req.body.data);
+    const images = await req.files;
     const user = await req.user;
-    const checks = await preUpdateChecks(body,images, user);
-    if(checks.success){
-        const updated = await updatingStay(body,images,user, checks.data);
-        if(updated){
-            return res.status(updated.status).json({type:true, message:updated.message, data:updated.data})
-        }else{
-            return res.status(updated.status).json({type:false, message:updated.message})
+    const checks = await preUpdateChecks(body, images, user);
+    if (checks.success) {
+        const updated = await updatingStay(body, images, user, checks.data);
+        if (updated) {
+            return res.status(updated.status).json({ type: true, message: updated.message, data: updated.data })
+        } else {
+            return res.status(updated.status).json({ type: false, message: updated.message })
         }
-    }else{
-        res.status(checks.status).json({type:checks.success, message:checks.message})
+    } else {
+        res.status(checks.status).json({ type: checks.success, message: checks.message })
     }
 }
 
-const getByCheckInCheckOut = async(req,res)=>{
-    const {checkIn, checkOut} = req.query;
+const getByCheckInCheckOut = async (req, res) => {
+    const { checkIn, checkOut } = req.query;
     const stay_id = req.params.stay_id;
-    const stays = await getCheckins(checkIn,checkOut, stay_id);
+    const stays = await getCheckins(checkIn, checkOut, stay_id);
 }
 
-module.exports = { addStay, getStaysByProp, bookStay, updateStay, getByCheckInCheckOut};
+const getById = async (req, res) => {
+    const { stay_id } = req.params;
+    const stay = await getStayById(stay_id);
+    if (stay.success) {
+        res.status(200).json({ type: true, message: stay.message, data: stay.data })
+    } else {
+        res.status(404).json({ type: false, message: stay.message })
+    }
+}
+
+const getStayBooking = async(req, res)=>{
+    try {
+        const user = req.user;
+        const bookings = await getAllStayBookings(user);
+        // console.log(bookings)
+        if(bookings.success){
+            res.status(200).json({ type: true, message: bookings.message, data: bookings.data })
+        }else{
+            res.status(bookings.status).json({ type: false, message: bookings.message })
+        }
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ type: false, message: "Something went wrong" })
+    }
+}
+
+const getAllStays = async(req,res)=>{
+    try {
+        const stays = await allStays();
+        if(stays.success){
+            res.status(200).json({ type: true, message: stays.message, data: stays.data })
+        }else{
+            res.status(stays.status).json({ type: false, message: stays.message })
+        }
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ type: false, message: "Something went wrong" })
+    }
+}
+
+module.exports = { addStay, getStaysByProp, bookStay, updateStay, getByCheckInCheckOut, getById, getStayBooking, getAllStays };

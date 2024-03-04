@@ -59,12 +59,12 @@ async function validateRooms(rooms) {
 
 const preAddChecks = async (body, images) => {
     try {
-        const { title} = body;
+        const { title } = body;
         const uniqueTitle = await Stay.findOne({ title: title });
         const isValid = validators.stayValidationSchema.validate(body);
-        if(isValid.error){
-            return {success:false,message:isValid.error.details[0].message}
-        }else{
+        if (isValid.error) {
+            return { success: false, message: isValid.error.details[0].message }
+        } else {
             if (uniqueTitle) {
                 return {
                     success: false,
@@ -104,32 +104,32 @@ const checkPropAndAddStay = async (body, property_id, images, user) => {
                     const savedImages = await saveImages(images, user_id);
                     if (savedImages.success) {
                         newStay.images = savedImages.data;
-                        console.log(newStay);
+                        newStay.city = (property.locationInfo.city)?property.locationInfo.city:null;
                         const stay = await newStay.save();
-                        if(stay){
+                        if (stay) {
                             const prop = await property.save();
-                            if(prop){
+                            if (prop) {
                                 return {
                                     success: true,
                                     message: "Successfully added new Stay to your property.",
                                     data: stay
                                 };
-                            }else{
-                                return{
-                                    success:false,
-                                    message:"Got into error while adding stay to the property"
+                            } else {
+                                return {
+                                    success: false,
+                                    message: "Got into error while adding stay to the property"
                                 }
                             }
-                        }else{
-                            return{
-                                success:false,
-                                message:"Got into error while saving Stay"
+                        } else {
+                            return {
+                                success: false,
+                                message: "Got into error while saving Stay"
                             }
                         }
                     } else {
                         return {
-                            success:false,
-                            message:savedImages.message
+                            success: false,
+                            message: savedImages.message
                         };
                     };
                 } else {
@@ -379,7 +379,7 @@ const canUpdateStay = async (stay_id, user_id) => {
     if (ObjectId.isValid(stay_id)) {
         let stay = await Stay.findById(stay_id);
         if (stay.owner.equals(user_id)) {
-            return { success: true, message: "Stay can be updated", data : stay }
+            return { success: true, message: "Stay can be updated", data: stay }
         }
         else {
             return { success: false, message: "You are not authorized to update this stay.", status: 401 }
@@ -397,15 +397,15 @@ const preUpdateChecks = async (body, images, user) => {
             if (isValid.error) {
                 return { success: false, message: isValid.error.details[0].message, status: 400 }
             } else {
-                if (images || images?.length > 0) {
-                    const validImages = await validators.imageValidation(images)
+                if (images?.length > 0) {
+                    const validImages = await checkImages(images)
                     if (validImages.success) {
-                        return { success: true, message: "All Data and Images are Valid", data:canUpdate.data, status: 200 }
+                        return { success: true, message: "All Data and Images are Valid", data: canUpdate.data, status: 200 }
                     } else {
                         return { success: false, message: validImages.message, status: 400 }
                     }
                 } else {
-                    return { success: true, message: "All Fields are valid", data:canUpdate.data, status: 200 }
+                    return { success: true, message: "All Fields are valid", data: canUpdate.data, status: 200 }
                 }
             }
         } else {
@@ -442,37 +442,37 @@ const updatingStay = async (body, images, user, stay) => {
             // Update stay.images to only include images present in both arrays
             stay.images = stay.images.filter(image => body.images.includes(image));
         }
-        if(stay.title!= body.title){
+        if (stay.title != body.title) {
             stay.title = body.title
         }
-        if(stay.images!= body.images){
+        if (stay.images != body.images) {
             stay.images = body.images
         }
-        if(stay.price!=body.price){
+        if (stay.price != body.price) {
             stay.price = body.price
         }
-        if(stay.maxPeople!=body.maxPeople){
+        if (stay.maxPeople != body.maxPeople) {
             stay.maxPeople = body.maxPeople
         }
-        if(stay.desc!=body.desc){
+        if (stay.desc != body.desc) {
             stay.desc = body.desc
         }
-        if(stay.rooms!=body.rooms){
+        if (stay.rooms != body.rooms) {
             stay.rooms = body.rooms
         }
-        if(stay.roomNumbers!=body.roomNumbers){
+        if (stay.roomNumbers != body.roomNumbers) {
             stay.roomNumbers = body.roomNumbers
         }
-        if(stay.closedDates != body.closedDates){
+        if (stay.closedDates != body.closedDates) {
             stay.closedDates = body.closedDates
         }
-        if(stay.status!=body.status){
+        if (stay.status != body.status) {
             stay.status = body.status
         }
         const saved = await stay.save();
-        if(saved){
-            return { success: true, message: "Successfully updated the stay.", data: saved, status:200 }
-        }else{
+        if (saved) {
+            return { success: true, message: "Successfully updated the stay.", data: saved, status: 200 }
+        } else {
             return { success: false, message: "Got into an error while updating the stay.", status: 500 }
         }
     } catch (error) {
@@ -524,9 +524,87 @@ async function findAvailableStays(checkIn, checkOut) {
 }
 
 
-const getCheckins = async (checkIn,checkOut) => {
+const getCheckins = async (checkIn, checkOut) => {
     const stayExists = await findAvailableStays(checkIn, checkOut);
     console.log(stayExists)
 }
 
-module.exports = { preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay, getCheckins };
+const getStayById = async (id) => {
+    try {
+        const stay = await Stay.findById(id);
+        if (stay) {
+            return { success: true, message: "Successfully found the stay.", data: stay, status: 200 }
+        } else {
+            return { success: false, message: "Could not find the stay.", status: 404 }
+        }
+    } catch (error) {
+        console.log(error);
+        return { success: false, message: "Got into an error while finding the stay.", status: 500 }
+    }
+}
+
+const isAdmin = async (user) => {
+    try {
+        if (user.role == 'admin') {
+            return { success: true, message: "Successfully validated the user.", data: user, status: 200 }
+        } else {
+            return { success: false, message: "You are not authorized to perform this action.", status: 401 }
+        }
+    } catch (error) {
+        console.log(error)
+        return { success: false, message: "Got into an error while validating the user.", status: 500 }
+    }
+}
+
+const getAllStayBookings = async (user) => {
+    try {
+        const admin = await isAdmin(user);
+        if (admin.success) {
+            const bookingsAggregate = await Booking.aggregate([
+                // Unwind the stayBooking array
+                { $unwind: "$stayBooking" },
+                // Sort by duration.checkIn
+                { $sort: { 'stayBooking.duration.checkIn': 1 } },
+                // Group back into an array
+                {
+                    $group: {
+                        _id: null,
+                        stayBooking: { $push: "$stayBooking" }
+                    }
+                }
+            ]);
+
+            // Extract stayBooking array from the result
+            const stayBookings = bookingsAggregate.length > 0 ? bookingsAggregate[0].stayBooking : [];
+
+            // Populate stayBooking.room.id
+            const populatedStayBookings = await Booking.populate(stayBookings, { path: "room.id", model: "Stay" });
+            if (populatedStayBookings) {
+                return { success: true, message: "Successfully found the bookings.", data: populatedStayBookings, status: 200 }
+            } else {
+                return { success: false, message: "Could not find the bookings.", status: 404 }
+            }
+        } else {
+            return admin;
+        }
+    } catch (error) {
+        console.log(error)
+        return { success: false, message: "Got into an error while finding the stay.", status: 500 }
+    }
+}
+
+const allStays = async()=>{
+    try{
+    const stays = await Stay.find();
+    if(stays){
+      return {success: true, message: "Successfully found all stays", data: stays}
+    }else{
+      return {success: false, message: "Could not find any stays", status: 404}
+    }
+  }catch(error){
+    console.log(error);
+    return {success: false, message: "Got into an error while finding stays", status: 500}
+  }
+}
+
+module.exports = { preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay, getCheckins, getStayById, getAllStayBookings,allStays };

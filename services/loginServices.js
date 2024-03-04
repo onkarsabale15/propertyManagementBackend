@@ -32,9 +32,11 @@ const checkUserAndLogin = async (email, password) => {
     if (userExists) {
         if (await checkPassword(password, userExists.password)) {
             userExists.password = undefined;
-            // console.log(userExists)
+            if(userExists.role=="user"){
+                userExists.role = undefined;
+            }
             const token = await jwt.sign({ userExists }, JWT_SECRET_KEY);
-            return { success: true, message: "User logged in", data: token, status: 200 };
+            return { success: true, message: "User logged in", data: {token,userExists}, status: 200 };
         } else {
             return { success: false, message: "Invalid email or password", status: 401 };
         };

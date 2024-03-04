@@ -4,38 +4,29 @@ const objId = mongoose.Schema.Types.ObjectId;
 const propertySchema = mongoose.Schema({
     name: {
         type: String,
-        required: true, unique:true
+        required: true,
+        unique: true
     },
     images: [{ type: String }],
     propertyType: {
         type: String,
         required: true,
-        enum: ["Amenity", "Stay"]
+        enum: ["Amenity", "Hotel", "Villa"]
     },
-    chargesType: {
-        type: String,
-        required: true,
-        enum: ["Hourly", "Per-Night"]
-    },
-    allowedPaymentMethods: [{
-        type: String,
-        required: true,
-        enum: ["preCheckIn", "onCheckIn"]
-    }],
     locationInfo: {
-        mapsUrl: {
+        address: {
             type: String,
+            required: true
         },
-        coordinates: {
-            type: {
-                type: String,
-                default: 'Point',
-                required: true
-            },
-            coordinates: {
-                type: [Number],//longitude and latitude
-                required: true,
-            },
+        city: {
+            type: String,
+            required: true
+        },
+        landmarks: [{
+            type: String
+        }],
+        googleMapsLink: {
+            type: String,
         },
     },
     closedDates: [{
@@ -57,21 +48,21 @@ const propertySchema = mongoose.Schema({
             ref: "Amenity"
         }]
     },
-    status:{
-        type:Boolean,
-        default:false
+    status: {
+        type: Boolean,
+        default: false
     },
-    owner:{
-        type:objId,
-        ref:"User",
-        required:true
+    owner: {
+        type: objId,
+        ref: "User",
+        required: true
     }
 }, {
     timestamps: true
 });
 
 // Create a 2dsphere index on locationInfo.coordinates field for geospatial queries
-propertySchema.index({ 'locationInfo.coordinates': '2dsphere' });
+// propertySchema.index({ 'locationInfo.coordinates': '2dsphere' });
 
 const Property = mongoose.model('Property', propertySchema);
 module.exports = Property;
