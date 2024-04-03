@@ -1,19 +1,28 @@
-const { preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay, getCheckins, getStayById, getAllStayBookings, allStays } = require("../services/stayServices");
+const { preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay, getStaysByCheckinCheckout, getStayById, getAllStayBookings, allStays, isAvailable, getBookingDates } = require("../services/stayServices");
 const formatDate = require("../helpers/dateFormater")
 const addStay = async (req, res) => {
-    let body = await JSON.parse(req.body.data);
-    const property_id = await body.property_id;
-    body = body.fields;
-    const images = await req.files;
-    const user = await req.user;
-    const check = await preAddChecks(body, images);
-    if (check.success) {
-        const added = await checkPropAndAddStay(body, property_id, images, user);
-        res.status(201).json({ type: true, message: added.message, data: added.data });
-    } else {
-        console.log(check)
-        res.status(400).json({ type: false, message: check.message });
-    };
+    try {
+        let body = await JSON.parse(req.body.data);
+        const property_id = await body.property_id;
+        body = body.fields;
+        const images = await req.files;
+        const user = await req.user;
+        const check = await preAddChecks(body, images, property_id);
+        if (check.success) {
+            const added = await checkPropAndAddStay(body, property_id, images, user);
+            if(added.success){
+                res.status(201).json({ type: true, message: added.message, data: added.data })
+            } else {
+                res.status(400).json({ type: false, message: added.message })
+            }
+        } else {
+            console.log(check)
+            res.status(400).json({ type: false, message: check.message });
+        };
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ type: false, message: "Got into an error while adding the stay." })
+    }
 };
 
 const getStaysByProp = async (req, res) => {
@@ -61,9 +70,14 @@ const updateStay = async (req, res) => {
 }
 
 const getByCheckInCheckOut = async (req, res) => {
-    const { checkIn, checkOut } = req.query;
-    const stay_id = req.params.stay_id;
-    const stays = await getCheckins(checkIn, checkOut, stay_id);
+    try {
+        const { checkIn, checkOut } = req.body;
+        const stays = await getStaysByCheckinCheckout(checkIn, checkOut);
+        res.status(stays.status).json({type:stays.success, message:stays.message, data:stays.data?stays.data:null})
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ type: false, message: "Got into an error while getting the stays." })
+    }
 }
 
 const getById = async (req, res) => {
@@ -106,4 +120,36 @@ const getAllStays = async(req,res)=>{
     }
 }
 
-module.exports = { addStay, getStaysByProp, bookStay, updateStay, getByCheckInCheckOut, getById, getStayBooking, getAllStays };
+const checkAvailability = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const checkIn = req.query.checkIn?.replace(/-/g, "/");
+        const checkOut = req.query.checkOut?.replace(/-/g, "/");
+        const available = await isAvailable(id, checkIn, checkOut);
+        if(available.success){
+            res.status(200).json({ type: true, message: available.message, data: available.data })
+        }else{
+            res.status(available.status).json({ type: false, message: available.message })
+        }
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ type: false, message: "Something went wrong" })
+    }
+}
+
+const getStayBookingDates = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const bookingDates = await getBookingDates(id);
+        if(bookingDates.success){
+            res.status(200).json({ type: true, message: bookingDates.message, data: bookingDates.data })
+        }else{
+            res.status(bookingDates.status).json({ type: false, message: bookingDates.message })
+        }
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ type: false, message: "Got into an error while getting the stay booking dates." })
+    }
+}
+
+module.exports = { addStay, getStaysByProp, bookStay, updateStay, getByCheckInCheckOut, getById, getStayBooking, getAllStays, checkAvailability, getStayBookingDates };

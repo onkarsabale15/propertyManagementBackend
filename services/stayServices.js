@@ -57,8 +57,14 @@ async function validateRooms(rooms) {
 
 
 
-const preAddChecks = async (body, images) => {
+const preAddChecks = async (body, images, property_id) => {
     try {
+        if(!property_id){
+            return{
+                success: false,
+                message: "Please Select Valid Property.",
+            }
+        }
         const { title } = body;
         const uniqueTitle = await Stay.findOne({ title: title });
         const isValid = validators.stayValidationSchema.validate(body);
@@ -95,7 +101,6 @@ const checkPropAndAddStay = async (body, property_id, images, user) => {
             body.owner = await user._id;
             user_id = new ObjectId(user._id).toString();
             property_id = new ObjectId(property_id).toString();
-            console.log(body)
             try {
                 const newStay = new Stay(body);
                 const property = await Property.findById(property_id);
@@ -469,6 +474,9 @@ const updatingStay = async (body, images, user, stay) => {
         if (stay.status != body.status) {
             stay.status = body.status
         }
+        if(stay.facilities != body.facilities){
+            stay.facilities = body.facilities;
+        }
         const saved = await stay.save();
         if (saved) {
             return { success: true, message: "Successfully updated the stay.", data: saved, status: 200 }
@@ -510,23 +518,32 @@ async function findAvailableStays(checkIn, checkOut) {
 
             // If at least one room is available, include the stay in the result
             if (availableRooms.length > 0) {
+                // return {success: true, message: "Found available stays", data: result, status: 200};
                 return { stay, availableRooms };
             }
 
             return null;
         }).filter(Boolean);
-
-        return result;
+        if(result.length > 0){
+            return { success: true, message: `Found ${result.length} available stays`, data: result, status: 200};;
+        }else{
+            return { success: false, message: "No available stays found", status: 400 };
+        }
     } catch (error) {
         console.error(error);
-        throw new Error('Error finding available stays.');
+        return { success: false, message: "Got into an error while finding available stays.", status: 500 };
     }
 }
 
 
-const getCheckins = async (checkIn, checkOut) => {
-    const stayExists = await findAvailableStays(checkIn, checkOut);
-    console.log(stayExists)
+const getStaysByCheckinCheckout = async (checkIn, checkOut) => {
+    try {
+        const stayExists = await findAvailableStays(checkIn, checkOut);
+        return stayExists;
+    } catch (error) {
+        console.log(error)
+        return { success: false, message: "Got into an error while finding available stays by checkin and checkout dates.", status: 500 }
+    }
 }
 
 const getStayById = async (id) => {
@@ -607,4 +624,83 @@ const allStays = async()=>{
   }
 }
 
-module.exports = { preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay, getCheckins, getStayById, getAllStayBookings,allStays };
+async function generateDateArrayAsync(checkIn, checkOut) {
+    return new Promise((resolve, reject) => {
+        try {
+            const dateArray = [];
+            const currentDate = new Date(checkIn);
+            const endDate = new Date(checkOut);
+
+            while (currentDate <= endDate) {
+                const formattedDate = currentDate.toLocaleDateString('en-CA').replace(/-/g, '/');
+                dateArray.push(formattedDate);
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            resolve(dateArray);
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+
+const availabilityChecks = async(id, checkIn, checkOut)=>{
+    try {
+        const regex = /^\d{4}\/\d{2}\/\d{2}$/;
+        const idValid = validator.isMongoId(id.toString());
+        if(!idValid){
+            return { success: false, message: "Invalid stay id.", status: 400 }
+        }
+        const checkinValid = regex.test(checkIn);
+        const checkoutValid = regex.test(checkOut);
+        if(!checkinValid ||!checkoutValid){
+            return { success: false, message: "Invalid checkin or checkout date.", status: 400 }
+        }
+        return { success: true, message: "Successfully validated the id and dates.", status: 200 }
+    } catch (error) {
+        console.log(error)
+        return { success: false, message: "Got into an error while checking availability data.", status: 500 }
+    }
+}
+
+const isAvailable = async(id, checkIn, checkOut)=>{
+    try {
+        const checks = await availabilityChecks(id, checkIn, checkOut);
+        if(checks.success){
+            const dateArray = await generateDateArrayAsync(checkIn, checkOut);
+            const books = await StayBooking.find({
+                stay_id: id,
+                date: { $in: dateArray }
+            });
+            if(!books){
+                return { success: false, message: "Stay is not available.", status: 400 }
+            }else{
+                return { success: true, message: "Stay is available.", status: 200 }
+            }
+        }else{
+            return checks;
+        }
+    } catch (error) {
+        console.log(error)
+        return { success: false, message: "Got into an error while checking availability.", status: 500 }
+    }
+}
+
+const getBookingDates = async(id)=>{
+    try {
+        const bookingDates = await StayBooking.find({
+            stay_id: id,
+        }).select('date');
+        if(bookingDates){
+            return {success: true, message: "Successfully found booking dates", data: bookingDates}
+        }else{
+            return {success: false, message: "Could not find any booking dates", status: 404}
+        }
+    } catch (error) {
+        console.log(error)
+        return { success: false, message: "Got into an error while finding booking dates.", status: 500 }
+    }
+}
+
+module.exports = { preAddChecks, checkPropAndAddStay, getByPropId, preBookChecks, finalBooking, preUpdateChecks, updatingStay, getStaysByCheckinCheckout, getStayById, getAllStayBookings,allStays, isAvailable, getBookingDates };
