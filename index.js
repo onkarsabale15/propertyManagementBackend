@@ -9,6 +9,7 @@ const path = require("path")
 const cors = require("cors")
 const corsOptions = {
     origin: '*',
+    credentials:true,
   };
 app.use(cors(corsOptions));
 
